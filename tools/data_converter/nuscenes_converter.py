@@ -26,6 +26,11 @@ def parse_args():
         '--newsplit',
         action='store_true')
     parser.add_argument(
+        '--dest-path',
+        type=str,
+        help='specify the dest path of dataset'
+    )
+    parser.add_argument(
         '-v','--version',
         choices=['v1.0-mini', 'v1.0-trainval', 'v1.0-test'],
         default='v1.0-trainval')
@@ -192,4 +197,4 @@ def create_nuscenes_infos_map(root_path,
 if __name__ == '__main__':
     args = parse_args()
 
-    create_nuscenes_infos_map(root_path=args.data_root, version=args.version, new_split=args.newsplit)
+    create_nuscenes_infos_map(root_path=args.data_root, dest_path=args.dest_path, version=args.version, new_split=args.newsplit)
