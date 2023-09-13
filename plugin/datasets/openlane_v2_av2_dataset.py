@@ -51,10 +51,12 @@ class OpenLaneV2_Av2_Dataset(Custom3DDataset):
                  filter_empty_gt=True,
                  filter_empty_te=False,
                  split='train',
+                 work_dir=None,
                  filter_map_change=False,
                  test_mode=False):
         self.filter_map_change = filter_map_change
         self.split = split
+        self.work_dir = work_dir
         super().__init__(data_root, ann_file, pipeline, classes, modality, box_type_3d, filter_empty_gt, test_mode)
         self.queue_length = queue_length
         self.filter_empty_te = filter_empty_te

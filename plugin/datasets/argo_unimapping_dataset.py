@@ -26,8 +26,6 @@ from mmdet.datasets import DATASETS
 from mmdet3d.datasets import Custom3DDataset
 from .openlane_v2_av2_dataset import OpenLaneV2_Av2_Dataset
 
-
-
 def fix_pts_interpolate(lane, n_points):
     ls = LineString(lane)
     distances = np.linspace(0, ls.length, n_points)
