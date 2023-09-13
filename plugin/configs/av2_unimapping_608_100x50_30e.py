@@ -241,14 +241,6 @@ model = dict(
 
 # data processing pipelines
 train_pipeline = [
-    dict(
-        type='VectorizeMap',
-        coords_dim=coords_dim,
-        roi_size=roi_size,
-        sample_num=num_points,
-        normalize=True,
-        permute=permute,
-    ),
     dict(type='LoadMultiViewImagesFromFiles', to_float32=True),
     dict(type='PhotoMetricDistortionMultiViewImage'),
     dict(type='ResizeMultiViewImages',
@@ -280,20 +272,17 @@ test_pipeline = [
 
 # configs for evaluation code
 # DO NOT CHANGE
+dataset_type = 'AV2_UniMapping_Dataset'
+data_root = 'datasets/openlane_v2_av2/'
+
 eval_config = dict(
-    type='AV2Dataset',
-    ann_file='./datasets/av2/av2_map_infos_val_newsplit.pkl',
+    type=dataset_type,
+    ann_file= data_root + 'data_dict_subset_A_train_ls.pkl',
+    scene_map_file=data_root + 'data_dict_av2_train_ls_v3_scene.pkl',
     meta=meta,
     roi_size=roi_size,
     cat2id=cat2id,
     pipeline=[
-        dict(
-            type='VectorizeMap',
-            coords_dim=coords_dim,
-            simplify=True,
-            normalize=False,
-            roi_size=roi_size
-        ),
         dict(type='FormatBundleMap'),
         dict(type='Collect3D', keys=['vectors'], meta_keys=['token'])
     ],
@@ -305,8 +294,9 @@ data = dict(
     samples_per_gpu=batch_size,
     workers_per_gpu=4,
     train=dict(
-        type='AV2Dataset',
-        ann_file='./datasets/av2_map_infos_train_newsplit.pkl',
+        type='AV2_UniMapping_Dataset',
+        ann_file= data_root + 'data_dict_subset_A_train_ls.pkl',
+        scene_map_file=data_root + 'data_dict_av2_train_ls_v3_scene.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -315,8 +305,9 @@ data = dict(
         interval=5,
     ),
     val=dict(
-        type='AV2Dataset',
-        ann_file='./datasets/av2_map_infos_val_newsplit.pkl',
+        type='AV2_UniMapping_Dataset',
+        ann_file= data_root + 'data_dict_subset_A_val_ls.pkl',
+        scene_map_file=data_root + 'data_dict_av2_val_ls_v3_scene.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -327,8 +318,9 @@ data = dict(
         interval=5,
     ),
     test=dict(
-        type='AV2Dataset',
-        ann_file='./datasets/av2_map_infos_val_newsplit.pkl',
+        type='AV2_UniMapping_Dataset',
+        ann_file= data_root + 'data_dict_subset_A_val_ls.pkl',
+        scene_map_file=data_root + 'data_dict_av2_val_ls_v3_scene.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
