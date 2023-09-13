@@ -45,6 +45,32 @@ sample_dist = -1
 sample_num = -1
 simplify = True
 
+class_names = ['lane_segment', 'ped_crossing']
+
+input_modality = dict(
+    use_lidar=False,
+    use_camera=True,
+    use_radar=False,
+    use_map=False,
+    use_external=False)
+num_cams = 7
+
+map_size = [-30, -15, 30, 15]
+para_method = 'downsample'
+method_para = dict(n_points=10)
+code_size = 3 * method_para['n_points'] * 3
+
+_dim_ = 256
+_pos_dim_ = _dim_//2
+_ffn_dim_ = _dim_*2
+_ffn_cfg_ = dict(
+    type='FFN',
+    embed_dims=_dim_,
+    feedforward_channels=_ffn_dim_,
+    num_fcs=2,
+    ffn_drop=0.1,
+    act_cfg=dict(type='ReLU', inplace=True),
+)
 # meta info for submission pkl
 meta = dict(
     use_lidar=False,
@@ -291,51 +317,48 @@ eval_config = dict(
 
 # dataset configs
 data = dict(
-    samples_per_gpu=batch_size,
-    workers_per_gpu=4,
+    samples_per_gpu=1,
+    workers_per_gpu=8,
     train=dict(
-        type='AV2_UniMapping_Dataset',
-        ann_file= data_root + 'data_dict_subset_A_train_ls.pkl',
+        type=dataset_type,
+        data_root=data_root,
+        ann_file=data_root + 'data_dict_av2_10Hz_train.pkl',
         scene_map_file=data_root + 'data_dict_av2_train_ls_v3_scene.pkl',
-        meta=meta,
-        roi_size=roi_size,
-        cat2id=cat2id,
+        map_size=map_size,
+        queue_length=1,
         pipeline=train_pipeline,
-        seq_split_num=1,
-        interval=5,
-    ),
+        classes=class_names,
+        modality=input_modality,
+        split='train',
+        points_num=method_para['n_points'],
+        test_mode=False),
     val=dict(
-        type='AV2_UniMapping_Dataset',
-        ann_file= data_root + 'data_dict_subset_A_val_ls.pkl',
+        type=dataset_type,
+        data_root='data/openlane_v2_av2/',
+        ann_file='data/openlane_v2_av2/data_dict_subset_A_val_ls.pkl',
         scene_map_file=data_root + 'data_dict_av2_val_ls_v3_scene.pkl',
-        meta=meta,
-        roi_size=roi_size,
-        cat2id=cat2id,
+        map_size=map_size,
+        queue_length=1,
         pipeline=test_pipeline,
-        eval_config=eval_config,
-        test_mode=True,
-        seq_split_num=1,
-        interval=5,
-    ),
+        classes=class_names,
+        modality=input_modality,
+        split='val',
+        points_num=method_para['n_points'],
+        test_mode=True),
     test=dict(
-        type='AV2_UniMapping_Dataset',
-        ann_file= data_root + 'data_dict_subset_A_val_ls.pkl',
+        type=dataset_type,
+        data_root='data/openlane_v2_av2/',
+        ann_file='data/openlane_v2_av2/data_dict_subset_A_val_ls.pkl',
         scene_map_file=data_root + 'data_dict_av2_val_ls_v3_scene.pkl',
-        meta=meta,
-        roi_size=roi_size,
-        cat2id=cat2id,
+        map_size=map_size,
+        queue_length=1,
         pipeline=test_pipeline,
-        eval_config=eval_config,
-        test_mode=True,
-        seq_split_num=1,
-        interval=5,
-    ),
-    shuffler_sampler=dict(
-        type='InfiniteGroupEachSampleInBatchSampler',
-        seq_split_num=2,
-        num_iters_to_seq=num_iters_single_frame,
-        random_drop=0.0
-    ),
+        classes=class_names,
+        modality=input_modality,
+        split='val',
+        points_num=method_para['n_points'],
+        test_mode=True),
+    shuffler_sampler=dict(type='DistributedGroupSampler'),
     nonshuffler_sampler=dict(type='DistributedSampler')
 )
 
