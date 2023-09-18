@@ -217,9 +217,13 @@ class CustomMSDeformableAttention(BaseModule):
             [spatial_shapes[..., 1], spatial_shapes[..., 0]], -1) # changed to (h, w)
         _, _, num_points, _ = reference_points.shape
         # (bs, num_queries, num_pts, 2) ->
-        # (bs, num_queries, num_heads, num_lvls, num_pts, 2) 
+        # (bs, num_queries, num_heads, num_lvls, num_pts, 2)
         reference_points = reference_points[:, :, None, None, :, :]
         # reference_points[..., 1:2] = -reference_points[..., 1:2]
+        # if (reference_points.shape)[4] != 20:
+        #     breakpoint()
+        # print(f'Shape of reference points: {reference_points.shape}')
+        # print(f'Shape of sampling offsets: {sampling_offsets.shape}')
         sampling_locations = reference_points + \
             (sampling_offsets # (bs, num_queries, num_heads, num_lvls, num_pts, 2) 
             / offset_normalizer[None, None, None, :, None, :])

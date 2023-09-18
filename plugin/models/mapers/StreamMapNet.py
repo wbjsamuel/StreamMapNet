@@ -99,7 +99,7 @@ class StreamMapNet(BaseMapper):
         Out:
             fused_bev_feat: torch.Tensor of shape [B, neck_input_channels, H, W]
         '''
-        breakpoint()
+        # breakpoint()
         bs = curr_bev_feats.size(0)
         fused_feats_list = []
 
@@ -142,7 +142,7 @@ class StreamMapNet(BaseMapper):
 
         fused_feats = torch.stack(fused_feats_list, dim=0)
 
-        self.bev_memory.update(fused_feats, img_metas)
+        self.bev_memory.update(fused_feats, img_metas, bs)
         
         return fused_feats
 

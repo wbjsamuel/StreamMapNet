@@ -72,7 +72,7 @@ class HungarianLinesAssigner(BaseAssigner):
         """
         assert gt_bboxes_ignore is None, \
             'Only case when gt_bboxes_ignore is None is supported.'
-        
+        # breakpoint()
         num_gts, num_lines = gts['lines'].size(0), preds['lines'].size(0)
 
         # 1. assign -1 by default

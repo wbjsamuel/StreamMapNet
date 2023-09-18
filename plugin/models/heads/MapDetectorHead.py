@@ -399,9 +399,9 @@ class MapDetectorHead(nn.Module):
                 ref_pts_list.append(_lines.view(-1, self.num_points, 2))
                 gt_targets_list.append(_gt_targets.view(-1, self.num_points, 2))
 
-            self.query_memory.update(query_list, img_metas)
-            self.reference_points_memory.update(ref_pts_list, img_metas)
-            self.target_memory.update(gt_targets_list, img_metas)
+            self.query_memory.update(query_list, img_metas, bs)
+            self.reference_points_memory.update(ref_pts_list, img_metas, bs)
+            self.target_memory.update(gt_targets_list, img_metas, bs)
 
             loss_dict['trans_loss'] = trans_loss
 
@@ -563,7 +563,7 @@ class MapDetectorHead(nn.Module):
 
         lines_target = torch.zeros_like(lines_pred) # (num_q, 2*num_pts)
         lines_weights = torch.zeros_like(lines_pred) # (num_q, 2*num_pts)
-        
+        # breakpoint()
         if num_gt > 0:
             if gt_permute_idx is not None: # using permute invariant label
                 # gt_permute_idx: (num_q, num_gt)
@@ -577,7 +577,7 @@ class MapDetectorHead(nn.Module):
                     lines_target.dtype) # (num_q, 2*num_pts)
             else:
                 lines_target[pos_inds] = sampling_result.pos_gt_bboxes.type(
-                    lines_target.dtype) # (num_q, 2*num_pts)
+                    lines_target.dtype)[:,:40] # (num_q, 2*num_pts)
         
         lines_weights[pos_inds] = 1.0 # (num_q, 2*num_pts)
 

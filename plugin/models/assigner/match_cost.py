@@ -130,11 +130,11 @@ class LinesL1Cost(object):
                 shape [num_pred, num_gt]
         """
         
-        if self.permute:
-            assert len(gt_lines.shape) == 3
-        else:
-            assert len(gt_lines.shape) == 2
-
+        # if self.permute:
+        #     assert len(gt_lines.shape) == 3
+        # else:
+        #     assert len(gt_lines.shape) == 2
+        # breakpoint()
         num_pred, num_gt = len(lines_pred), len(gt_lines)
         if self.permute:
             # permute-invarint labels
@@ -145,10 +145,11 @@ class LinesL1Cost(object):
         if self.beta > 0:
             lines_pred = lines_pred.unsqueeze(1).repeat(1, len(gt_lines), 1)
             gt_lines = gt_lines.unsqueeze(0).repeat(num_pred, 1, 1)
-            dist_mat = smooth_l1_loss(lines_pred, gt_lines, reduction='none', beta=self.beta).sum(-1)
+            # breakpoint()
+            dist_mat = smooth_l1_loss(lines_pred, gt_lines[:,:,:40], reduction='none', beta=self.beta).sum(-1)
         
         else:
-            dist_mat = torch.cdist(lines_pred, gt_lines, p=1)
+            dist_mat = torch.cdist(lines_pred, gt_lines[:,:,:40], p=1)
 
         dist_mat = dist_mat / num_pts
 

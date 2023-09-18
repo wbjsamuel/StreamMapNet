@@ -20,7 +20,7 @@ img_size = (img_h, img_w)
 num_gpus = 8
 batch_size = 4
 num_iters_per_epoch = 24000 // (num_gpus * batch_size)
-num_epochs = 30
+num_epochs = 24
 total_iters = num_iters_per_epoch * num_epochs
 num_iters_single_frame = total_iters // 6
 num_queries = 100
@@ -40,7 +40,7 @@ bev_w = 100
 pc_range = [-roi_size[0]/2, -roi_size[1]/2, -3, roi_size[0]/2, roi_size[1]/2, 5]
 
 # vectorize params
-coords_dim = 2
+coords_dim = 3
 sample_dist = -1
 sample_num = -1
 simplify = True
@@ -87,7 +87,7 @@ num_feat_levels = 3
 norm_cfg = dict(type='BN2d')
 num_class = max(list(cat2id.values()))+1
 num_points = 20
-permute = True
+permute = False
 
 model = dict(
     type='StreamMapNet',
@@ -213,7 +213,7 @@ model = dict(
                             embed_dims=embed_dims,
                             num_heads=8,
                             num_levels=1,
-                            num_points=num_points,
+                            num_points=20, # num_points= 20
                             dropout=0.1,
                         ),
                     ],
@@ -312,7 +312,7 @@ eval_config = dict(
     cat2id=cat2id,
     pipeline=[
         dict(type='FormatBundleMap'),
-        dict(type='Collect3D', keys=['vectors'], meta_keys=['token'])
+        dict(type='Collect3D', keys=['lines', 'labels'], meta_keys=['token'])
     ],
     interval=5,
 )

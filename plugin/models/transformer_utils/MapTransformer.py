@@ -114,6 +114,7 @@ class MapTransformerDecoder_new(BaseModule):
                 reference_points = torch.stack(new_refpts)
                 assert list(output.shape) == [num_queries, bs, embed_dims]
 
+            # breakpoint()
             tmp = reference_points.clone()
             tmp[..., 1:2] = 1.0 - reference_points[..., 1:2] # reverse y-axis
             # reference_points = tmp
@@ -143,7 +144,7 @@ class MapTransformerDecoder_new(BaseModule):
                 new_reference_points = reg_points.sigmoid() # (bs, num_q, num_points, 2)
             
             reference_points = new_reference_points.clone().detach()
-
+            # print(f'reference_points: {reference_points.shape}')
             if self.return_intermediate:
                 intermediate.append(output.permute(1, 0, 2)) # [(bs, num_q, embed_dims)]
                 intermediate_reference_points.append(new_reference_points) # (bs, num_q, num_points, 2)
