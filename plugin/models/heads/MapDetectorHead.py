@@ -218,10 +218,10 @@ class MapDetectorHead(nn.Module):
                 prop_reference_points_list.append(padding)
             else:
                 # use float64 to do precise coord transformation
-                prev_e2g_trans = self.roi_size.new_tensor(pose_memory[i]['ego2global_translation'], dtype=torch.float64)
-                prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i]['ego2global_rotation'], dtype=torch.float64)
-                curr_e2g_trans = self.roi_size.new_tensor(img_metas[i]['ego2global_translation'], dtype=torch.float64)
-                curr_e2g_rot = self.roi_size.new_tensor(img_metas[i]['ego2global_rotation'], dtype=torch.float64)
+                prev_e2g_trans = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_translation'], dtype=torch.float64)
+                prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_rotation'], dtype=torch.float64)
+                curr_e2g_trans = self.roi_size.new_tensor(img_metas[i][0]['ego2global_translation'], dtype=torch.float64)
+                curr_e2g_rot = self.roi_size.new_tensor(img_metas[i][0]['ego2global_rotation'], dtype=torch.float64)
                 
                 prev_e2g_matrix = torch.eye(4, dtype=torch.float64).to(query_embedding.device)
                 prev_e2g_matrix[:3, :3] = prev_e2g_rot

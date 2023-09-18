@@ -392,7 +392,8 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             # pts_filename=pts_filename,
             sample_idx=info['timestamp'],  # use timestamp as sample_idx
             scene_token=info['segment_id'],
-            scene_name=info['segment_id']
+            scene_name=info['segment_id'],
+            token=info['segment_id']
         )
 
         if self.modality['use_camera']:

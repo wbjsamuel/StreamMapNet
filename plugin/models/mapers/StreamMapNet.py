@@ -114,10 +114,11 @@ class StreamMapNet(BaseMapper):
                 fused_feats_list.append(new_feat)
             else:
                 # else, warp buffered bev feature to current pose
-                prev_e2g_trans = self.plane.new_tensor(pose_memory[i]['ego2global_translation'], dtype=torch.float64)
-                prev_e2g_rot = self.plane.new_tensor(pose_memory[i]['ego2global_rotation'], dtype=torch.float64)
-                curr_e2g_trans = self.plane.new_tensor(img_metas[i]['ego2global_translation'], dtype=torch.float64)
-                curr_e2g_rot = self.plane.new_tensor(img_metas[i]['ego2global_rotation'], dtype=torch.float64)
+                # breakpoint()
+                prev_e2g_trans = self.plane.new_tensor(pose_memory[i][0]['ego2global_translation'], dtype=torch.float64)
+                prev_e2g_rot = self.plane.new_tensor(pose_memory[i][0]['ego2global_rotation'], dtype=torch.float64)
+                curr_e2g_trans = self.plane.new_tensor(img_metas[i][0]['ego2global_translation'], dtype=torch.float64)
+                curr_e2g_rot = self.plane.new_tensor(img_metas[i][0]['ego2global_rotation'], dtype=torch.float64)
                 
                 prev_g2e_matrix = torch.eye(4, dtype=torch.float64, device=prev_e2g_trans.device)
                 prev_g2e_matrix[:3, :3] = prev_e2g_rot.T

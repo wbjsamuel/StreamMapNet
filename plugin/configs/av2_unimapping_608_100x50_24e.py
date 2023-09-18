@@ -320,7 +320,7 @@ eval_config = dict(
 # dataset configs
 data = dict(
     samples_per_gpu=1,
-    workers_per_gpu=0, # for debug, training will set it to 8
+    workers_per_gpu=8, # for debug, training will set it to 8
     train=dict(
         type=dataset_type,
         data_root=data_root,
