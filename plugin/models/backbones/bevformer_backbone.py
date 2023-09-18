@@ -134,8 +134,9 @@ class BEVFormerBackbone(nn.Module):
                 img = img.reshape(B * N, C, H, W)
             if self.use_grid_mask:
                 img = self.grid_mask(img)
-
-            img_feats = self.img_backbone(img)
+            # breakpoint()
+            # img shape should be [7, 3, 800, 1024] like, check pipeline operation
+            img_feats = self.img_backbone(img.squeeze())
             if isinstance(img_feats, dict):
                 img_feats = list(img_feats.values())
         else:

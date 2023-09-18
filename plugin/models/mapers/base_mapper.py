@@ -88,7 +88,7 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        
+        # breakpoint()
         if return_loss:
             return self.forward_train(*args, **kwargs)
         else:

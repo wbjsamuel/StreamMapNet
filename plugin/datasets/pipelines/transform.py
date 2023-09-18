@@ -31,6 +31,7 @@ class Normalize3D(object):
         for key in results.get('img_fields', ['img']):
             results[key] = [mmcv.imnormalize(
                 img, self.mean, self.std, self.to_rgb) for img in results[key]]
+        # breakpoint()
         results['img_norm_cfg'] = dict(
             mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results
@@ -114,6 +115,7 @@ class PadMultiViewImages(object):
             dict: Updated result dict.
         """
         self._pad_img(results)
+        # breakpoint()
         return results
 
     def __repr__(self):
@@ -144,9 +146,9 @@ class ResizeMultiViewImages(object):
     def __call__(self, results:dict):
 
         new_imgs, post_intrinsics, post_ego2imgs = [], [], []
-
+        # breakpoint()
         for img,  cam_intrinsic, ego2img in zip(results['img'], \
-                results['cam_intrinsics'], results['ego2img']):
+                results['cam_intrinsic'], results['ego2img']):
             if self.scale is not None:
                 h, w = img.shape[:2]
                 target_h = int(h * self.scale)
@@ -160,13 +162,14 @@ class ResizeMultiViewImages(object):
                                                 (target_w, target_h),
                                                 return_scale=True)
             new_imgs.append(tmp)
-
+            # breakpoint()
             rot_resize_matrix = np.array([
                 [scaleW, 0,      0,    0],
                 [0,      scaleH, 0,    0],
                 [0,      0,      1,    0],
                 [0,      0,      0,    1]])
-            post_intrinsic = rot_resize_matrix[:3, :3] @ cam_intrinsic
+            # post_intrinsic = rot_resize_matrix[:3, :3] @ cam_intrinsic
+            post_intrinsic = rot_resize_matrix @ cam_intrinsic
             post_ego2img = rot_resize_matrix @ ego2img
             post_intrinsics.append(post_intrinsic)
             post_ego2imgs.append(post_ego2img)

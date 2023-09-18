@@ -28,6 +28,7 @@ class StreamTensorMemory(object):
             return self.test_img_metas_memory
 
     def update(self, memory, img_metas):
+        breakpoint()
         for i in range(self.bs):
             self.memory_list[i] = memory[i].clone().detach()
             self.img_metas_memory[i] = copy.deepcopy(img_metas[i])

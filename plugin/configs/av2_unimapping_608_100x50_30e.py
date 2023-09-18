@@ -99,12 +99,13 @@ model = dict(
         roi_size=roi_size,
         bev_h=bev_h,
         bev_w=bev_w,
-        use_grid_mask=True,
+        use_grid_mask=False,
+        pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
         img_backbone=dict(
             type='ResNet',
             with_cp=False,
             # pretrained='./resnet50_checkpoint.pth',
-            pretrained='open-mmlab://detectron2/resnet50_caffe',
+            # pretrained='open-mmlab://detectron2/resnet50_caffe',
             depth=50,
             num_stages=4,
             out_indices=(1, 2, 3),
@@ -275,8 +276,9 @@ train_pipeline = [
          ),
     dict(type='Normalize3D', **img_norm_cfg),
     dict(type='PadMultiViewImages', size_divisor=32),
+    dict(type='LaneSegmentParameterize3D', method=para_method, method_para=method_para, only='laneline'),
     dict(type='FormatBundleMap'),
-    dict(type='Collect3D', keys=['img', 'vectors'], meta_keys=(
+    dict(type='Collect3D', keys=['img', 'lines', 'labels'], meta_keys=(
         'token', 'ego2img', 'sample_idx', 'ego2global_translation',
         'ego2global_rotation', 'img_shape', 'scene_name'))
 ]
@@ -318,7 +320,7 @@ eval_config = dict(
 # dataset configs
 data = dict(
     samples_per_gpu=1,
-    workers_per_gpu=8,
+    workers_per_gpu=0, # for debug, training will set it to 8
     train=dict(
         type=dataset_type,
         data_root=data_root,

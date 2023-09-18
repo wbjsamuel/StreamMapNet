@@ -36,7 +36,7 @@ class LoadMultiViewImagesFromFiles(object):
                 - scale_factor (float): Scale factor.
                 - img_norm_cfg (dict): Normalization configuration of images.
         """
-        filename = results['img_filenames']
+        filename = results['img_filename']
         img = [mmcv.imread(name, self.color_type) for name in filename]
         if self.to_float32:
             img = [i.astype(np.float32) for i in img]

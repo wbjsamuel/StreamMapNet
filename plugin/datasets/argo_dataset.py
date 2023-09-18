@@ -7,6 +7,7 @@ from time import time
 import mmcv
 from IPython import embed
 
+
 @DATASETS.register_module()
 class AV2Dataset(BaseMapDataset):
     """Argoverse2 map dataset class.
@@ -23,11 +24,11 @@ class AV2Dataset(BaseMapDataset):
         test_mode (bool): whether in test mode
     """
 
-    def __init__(self, **kwargs,):
+    def __init__(self, **kwargs, ):
         super().__init__(**kwargs)
         self.map_extractor = AV2MapExtractor(self.roi_size, self.id2map)
         self.renderer = Renderer(self.cat2id, self.roi_size, 'av2')
-    
+
     def _set_sequence_group_flag(self):
         """
         Set each sequence to be a different group
@@ -35,7 +36,7 @@ class AV2Dataset(BaseMapDataset):
         if self.seq_split_num == -1:
             self.flag = np.arange(len(self.samples))
             return
-        
+
         res = []
         assert self.seq_split_num == 1
 
@@ -43,12 +44,12 @@ class AV2Dataset(BaseMapDataset):
         for s in self.samples:
             if s['scene_name'] not in all_log_ids:
                 all_log_ids.append(s['scene_name'])
-        
+
         for idx in range(len(self.samples)):
             res.append(all_log_ids.index(self.samples[idx]['scene_name']))
 
         self.flag = np.array(res, dtype=np.int64)
-    
+
     def load_annotations(self, ann_file):
         """Load annotations from ann_file.
 
@@ -58,13 +59,13 @@ class AV2Dataset(BaseMapDataset):
         Returns:
             list[dict]: List of annotations.
         """
-        
+
         start_time = time()
         ann = mmcv.load(ann_file)
         self.id2map = ann['id2map']
         samples = ann['samples']
         samples = samples[::self.interval]
-        
+
         print(f'collected {len(samples)} samples in {(time() - start_time):.2f}s')
         self.samples = samples
 
@@ -81,15 +82,16 @@ class AV2Dataset(BaseMapDataset):
 
         sample = self.samples[idx]
         log_id = sample['log_id']
-        
-        map_geoms = self.map_extractor.get_map_geom(log_id, sample['e2g_translation'], 
-                sample['e2g_rotation'])
 
+        map_geoms = self.map_extractor.get_map_geom(log_id, sample['e2g_translation'],
+                                                    sample['e2g_rotation'])
+        # map_geoms: dict('divider': List[LineString], 'ped_crossing': List[LineString], 'boundary': List[
+        # LineString], 'drivable_area: List[Polygon])
         map_label2geom = {}
         for k, v in map_geoms.items():
             if k in self.cat2id.keys():
                 map_label2geom[self.cat2id[k]] = v
-        
+
         ego2img_rts = []
         for c in sample['cams'].values():
             extrinsic, intrinsic = np.array(
@@ -108,8 +110,8 @@ class AV2Dataset(BaseMapDataset):
             # extrinsics are 4x4 tranform matrix, NOTE: **ego2cam**
             'cam_extrinsics': [c['extrinsics'] for c in sample['cams'].values()],
             'ego2img': ego2img_rts,
-            'map_geoms': map_label2geom, # {0: List[ped_crossing(LineString)], 1: ...}
-            'ego2global_translation': sample['e2g_translation'], 
+            'map_geoms': map_label2geom,  # {0: List[ped_crossing(LineString)], 1: ...}
+            'ego2global_translation': sample['e2g_translation'],
             'ego2global_rotation': sample['e2g_rotation'],
             'scene_name': sample['scene_name']
         }

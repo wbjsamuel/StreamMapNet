@@ -99,7 +99,7 @@ class StreamMapNet(BaseMapper):
         Out:
             fused_bev_feat: torch.Tensor of shape [B, neck_input_channels, H, W]
         '''
-
+        breakpoint()
         bs = curr_bev_feats.size(0)
         fused_feats_list = []
 
@@ -146,7 +146,7 @@ class StreamMapNet(BaseMapper):
         
         return fused_feats
 
-    def forward_train(self, img, vectors, points=None, img_metas=None, **kwargs):
+    def forward_train(self, img, lines, labels, points=None, img_metas=None, **kwargs):
         '''
         Args:
             img: torch.Tensor of shape [B, N, 3, H, W]
@@ -165,9 +165,9 @@ class StreamMapNet(BaseMapper):
         #  prepare labels and images
 
         gts, img, img_metas, valid_idx, points = self.batch_data(
-            vectors, img, img_metas, img.device, points)
-        
-        bs = img.shape[0]
+            lines, labels, img, img_metas, img.device, points)
+        # breakpoint()
+        bs = img.shape[0] # img shape [1,1,7,3,640,640]
 
         # Backbone
         _bev_feats = self.backbone(img, img_metas=img_metas, points=points)
@@ -229,43 +229,56 @@ class StreamMapNet(BaseMapper):
 
         return results_list
 
-    def batch_data(self, vectors, imgs, img_metas, device, points=None):
-        bs = len(vectors)
-        # filter none vector's case
-        num_gts = []
-        for idx in range(bs):
-            num_gts.append(sum([len(v) for k, v in vectors[idx].items()]))
-        valid_idx = [i for i in range(bs) if num_gts[i] > 0]
-        assert len(valid_idx) == bs # make sure every sample has gts
-
-        gts = []
-        all_labels_list = []
-        all_lines_list = []
-        for idx in range(bs):
-            labels = []
-            lines = []
-            for label, _lines in vectors[idx].items():
-                for _line in _lines:
-                    labels.append(label)
-                    if len(_line.shape) == 3: # permutation
-                        num_permute, num_points, coords_dim = _line.shape
-                        lines.append(torch.tensor(_line).reshape(num_permute, -1)) # (38, 40)
-                    elif len(_line.shape) == 2:
-                        lines.append(torch.tensor(_line).reshape(-1)) # (40, )
-                    else:
-                        assert False
-
-            all_labels_list.append(torch.tensor(labels, dtype=torch.long).to(device))
-            all_lines_list.append(torch.stack(lines).float().to(device))
-
+    def batch_data(self, lines, labels, imgs, img_metas, device, points=None):
+        bs = len(lines)
+        valid_idx = [i for i in range(bs) if len(lines[i]) > 0]
+        assert len(valid_idx) == bs
         gts = {
-            'labels': all_labels_list,
-            'lines': all_lines_list
+            'labels': labels,
+            'lines': lines
         }
-        
         gts = [deepcopy(gts) for _ in range(self.num_decoder_layers)]
 
         return gts, imgs, img_metas, valid_idx, points
+
+    # def _batch_data(self, vectors, imgs, img_metas, device, points=None):
+    #     bs = len(vectors)
+    #     # filter none vector's case
+    #     num_gts = []
+    #     breakpoint()
+    #     for idx in range(bs):
+    #         num_gts.append(sum([len(v) for k, v in vectors[idx].items()]))
+    #     valid_idx = [i for i in range(bs) if num_gts[i] > 0]
+    #     assert len(valid_idx) == bs # make sure every sample has gts
+    #
+    #     gts = []
+    #     all_labels_list = []
+    #     all_lines_list = []
+    #     for idx in range(bs):
+    #         labels = []
+    #         lines = []
+    #         for label, _lines in vectors[idx].items():
+    #             for _line in _lines:
+    #                 labels.append(label)
+    #                 if len(_line.shape) == 3: # permutation
+    #                     num_permute, num_points, coords_dim = _line.shape
+    #                     lines.append(torch.tensor(_line).reshape(num_permute, -1)) # (38, 40)
+    #                 elif len(_line.shape) == 2:
+    #                     lines.append(torch.tensor(_line).reshape(-1)) # (40, )
+    #                 else:
+    #                     assert False
+    #
+    #         all_labels_list.append(torch.tensor(labels, dtype=torch.long).to(device))
+    #         all_lines_list.append(torch.stack(lines).float().to(device))
+    #
+    #     gts = {
+    #         'labels': all_labels_list,
+    #         'lines': all_lines_list
+    #     }
+    #
+    #     gts = [deepcopy(gts) for _ in range(self.num_decoder_layers)]
+    #
+    #     return gts, imgs, img_metas, valid_idx, points
 
     def train(self, *args, **kwargs):
         super().train(*args, **kwargs)

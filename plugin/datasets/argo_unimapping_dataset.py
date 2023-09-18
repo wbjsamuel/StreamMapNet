@@ -20,7 +20,9 @@ import math
 from scipy.spatial.distance import cdist, euclidean
 
 from pyquaternion import Quaternion
-from shapely.geometry import LineString, box, Polygon
+from shapely.geometry import LineString, box, Polygon, MultiPolygon, MultiLineString
+from shapely import ops
+
 from mmcv.parallel import DataContainer as DC
 from mmdet.datasets import DATASETS
 from mmdet3d.datasets import Custom3DDataset
@@ -60,6 +62,8 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         if not os.path.exists(self.data_root + self.split):
             print('change data_root to s3://odl-flat/Argoverse2/Sensor_Dataset/sensor/')
             self.data_root = 's3://odl-flat/Argoverse2/Sensor_Dataset/sensor/'
+        
+        self.flag = np.zeros(len(self), dtype=np.uint8)
 
     def crop_scene_map(self, index):
 
@@ -334,24 +338,25 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             right_boundary = lane['right_laneline']
             LineString_right_boundary = LineString(right_boundary)
             gt_lanes.append([LineString_lane, LineString_left_boundary, LineString_right_boundary])
-            gt_lane_labels_3d.append(0)
+            # gt_lane_labels_3d.append(0)
+            gt_lane_labels_3d.append(1) # StreamMapNet only
             gt_lane_left_type.append(lane['left_laneline_type'])
             gt_lane_right_type.append(lane['right_laneline_type'])
-            vectors.append({'1':[LineString_left_boundary, LineString_right_boundary[::-1]]})
-
+            # vectors.append({'1': [LineString_left_boundary, LineString_right_boundary]})
         for area in ann_info['area']:
             if area['category'] == 1 and 'ped_crossing' in self.LANE_CLASSES:
                 centerline, left_boundary, right_boundary = self.ped2lane_segment(area['points'])
                 gt_lanes.append([centerline, left_boundary, right_boundary])
-                gt_lane_labels_3d.append(1)
-                vectors.append({'0': [left_boundary, right_boundary[::-1]]})
+                # gt_lane_labels_3d.append(1)
+                gt_lane_labels_3d.append(0) # StreamMapNet only
+                # vectors.append({'0': [left_boundary, right_boundary]})
             elif area['category'] == 2 and 'road_boundary' in self.LANE_CLASSES:
                 bound = area['points']
                 if self.boundary_type == 'line':
                     bound = LineString(self.change_boundary_dir(bound))
                 gt_lanes.append([bound, bound, bound])
                 gt_lane_labels_3d.append(2)
-                vectors.append({'2': [bound]})
+                # vectors.append({'2': [bound]})
             gt_lane_left_type.append(0)
             gt_lane_right_type.append(0)
 
@@ -422,9 +427,9 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             input_dict.update(
                 dict(
                     img_filename=image_paths,
-                    lidar2img=lidar2img_rts,
+                    ego2img=lidar2img_rts,
                     cam_intrinsic=cam_intrinsics,
-                    lidar2cam=lidar2cam_rts,
+                    ego2cam=lidar2cam_rts,
                 ))
 
         if not self.test_mode:

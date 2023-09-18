@@ -223,12 +223,12 @@ class OpenLaneV2_Av2_Dataset(Custom3DDataset):
         scene_token = input_dict['scene_token']
         self.pre_pipeline(input_dict)
         example = self.pipeline(input_dict)
-        if self.filter_empty_gt and \
-                (example is None or len(example['gt_lane_labels_3d']._data) == 0):
-            return None
-        if self.filter_empty_te and \
-                (example is None or len(example['gt_labels']._data) == 0):
-            return None
+        # if self.filter_empty_gt and \
+        #         (example is None or len(example['gt_lane_labels_3d']._data) == 0):
+        #     return None
+        # if self.filter_empty_te and \
+        #         (example is None or len(example['gt_labels']._data) == 0):
+        #     return None
 
         data_queue.insert(0, example)
         for i in prev_indexs_list:
@@ -239,9 +239,9 @@ class OpenLaneV2_Av2_Dataset(Custom3DDataset):
             if input_dict['sample_idx'] < sample_idx and input_dict['scene_token'] == scene_token:
                 self.pre_pipeline(input_dict)
                 example = self.pipeline(input_dict)
-                if self.filter_empty_gt and \
-                    (example is None or len(example['gt_lane_labels_3d']._data) == 0):
-                    return None
+                # if self.filter_empty_gt and \
+                #     (example is None or len(example['gt_lane_labels_3d']._data) == 0):
+                #     return None
                 sample_idx = input_dict['sample_idx']
             data_queue.insert(0, copy.deepcopy(example))
         return self.union2one(data_queue)
@@ -258,18 +258,18 @@ class OpenLaneV2_Av2_Dataset(Custom3DDataset):
             metas_map[i] = each['img_metas'].data
             if i == 0:
                 metas_map[i]['prev_bev'] = False
-                prev_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
-                prev_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
-                metas_map[i]['can_bus'][:3] = 0
-                metas_map[i]['can_bus'][-1] = 0
+                # prev_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                # prev_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                # metas_map[i]['can_bus'][:3] = 0
+                # metas_map[i]['can_bus'][-1] = 0
             else:
                 metas_map[i]['prev_bev'] = True
-                tmp_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
-                tmp_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
-                metas_map[i]['can_bus'][:3] -= prev_pos
-                metas_map[i]['can_bus'][-1] -= prev_angle
-                prev_pos = copy.deepcopy(tmp_pos)
-                prev_angle = copy.deepcopy(tmp_angle)
+                # tmp_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                # tmp_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                # metas_map[i]['can_bus'][:3] -= prev_pos
+                # metas_map[i]['can_bus'][-1] -= prev_angle
+                # prev_pos = copy.deepcopy(tmp_pos)
+                # prev_angle = copy.deepcopy(tmp_angle)
 
         queue[-1]['img'] = DC(torch.stack(imgs_list),
                               cpu_only=False, stack=True)
@@ -285,7 +285,6 @@ class OpenLaneV2_Av2_Dataset(Custom3DDataset):
             for lane in info['annotation']['lane_centerline']:
                 if len(lane['points']) == 201:
                     lane['points'] = lane['points'][::20]  # downsample points: 201 --> 11
-
             gt_dict[key] = info
         return gt_dict
 

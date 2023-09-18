@@ -66,6 +66,12 @@ class FormatBundleMap(object):
         if 'polys' in results:
             results['polys'] = DC(results['polys'], stack=False, cpu_only=True)
 
+        if 'gt_lanes_3d' in results:
+            results['lines'] = DC(results['gt_lanes_3d'], stack=False, cpu_only=True)
+
+        if 'gt_lane_labels_3d' in results:
+            results['labels'] = DC(results['gt_lane_labels_3d'], stack=False, cpu_only=True)
+
         return results
 
     def __repr__(self):
