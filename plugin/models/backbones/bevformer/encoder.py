@@ -96,9 +96,11 @@ class BEVFormerEncoder(TransformerLayerSequence):
     def point_sampling(self, reference_points, pc_range, img_metas):
 
         ego2img = []
-        # breakpoint()
         for img_meta in img_metas:
-            ego2img.append(img_meta[0]['ego2img'])
+            if 0 not in img_meta.keys():
+                ego2img.append(img_meta['ego2img'])
+            else:
+                ego2img.append(img_meta[0]['ego2img'])
         ego2img = np.asarray(ego2img)
         ego2img = reference_points.new_tensor(ego2img)  # (B, N, 4, 4)
         reference_points = reference_points.clone()
@@ -131,8 +133,12 @@ class BEVFormerEncoder(TransformerLayerSequence):
         reference_points_cam = reference_points_cam[..., 0:2] / torch.maximum(
             reference_points_cam[..., 2:3], torch.ones_like(reference_points_cam[..., 2:3]) * eps)
         # breakpoint()
-        reference_points_cam[..., 0] /= img_metas[0][0]['img_shape'][0][1]
-        reference_points_cam[..., 1] /= img_metas[0][0]['img_shape'][0][0]
+        if 0 in img_metas[0].keys():
+            reference_points_cam[..., 0] /= img_metas[0][0]['img_shape'][0][1]
+            reference_points_cam[..., 1] /= img_metas[0][0]['img_shape'][0][0]
+        else:
+            reference_points_cam[..., 0] /= img_metas[0]["img_shape"][0][1]
+            reference_points_cam[..., 1] /= img_metas[0]["img_shape"][0][0]
 
         bev_mask = (bev_mask & (reference_points_cam[..., 1:2] > 0.0)
                     & (reference_points_cam[..., 1:2] < 1.0)

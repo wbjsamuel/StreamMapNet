@@ -456,3 +456,34 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         input_dict['ego2global_translation'] = np.array(info['pose']['translation'])
         
         return input_dict
+
+    def evaluate(self, results, logger=None, show=False, out_dir=None, **kwargs):
+        """Evaluation in OpenlaneV2 av2 dataset. TODO Adapt to OLV2 evaluation metric.
+
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str): Metric to be performed.
+            iou_thr (float): IoU threshold for evaluation.
+            logger (logging.Logger | str | None): Logger used for printing
+                related information during evaluation. Default: None.
+            show (bool): Whether to visualize the results.
+            out_dir (str): Path of directory to save the results.
+            pipeline (list[dict]): Processing pipeline.
+
+        Returns:
+            dict: Evaluation results for evaluation metric.
+        """
+        if show:
+            assert out_dir, 'Expect out_dir when show is set.'
+            logger.info(f'Visualizing results at {out_dir}...')
+            self.show(results, out_dir)
+            logger.info(f'Visualize done.')
+
+        logger.info(f'Starting format results...')
+        gt_dict = self.format_openlanev2_gt()
+        pred_dict = self.format_results(results)
+
+        logger.info(f'Starting openlanev2 evaluate...')
+        metric_results = openlanev2_evaluate(gt_dict, pred_dict)
+        metric_results = format_metric(metric_results)
+        return metric_results

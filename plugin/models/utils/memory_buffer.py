@@ -51,7 +51,10 @@ class StreamTensorMemory(object):
                 is_first_frame = True
             else:
                 # breakpoint()
-                is_first_frame = (img_metas[i][0]['scene_name'] != self.img_metas_memory[i][0]['scene_name'])
+                if 0 in img_metas[i].keys():
+                    is_first_frame = (img_metas[i][0]['scene_name'] != self.img_metas_memory[i][0]['scene_name'])
+                else:
+                    is_first_frame = (img_metas[i]['scene_name'] != self.img_metas_memory[i]['scene_name'])
 
             if is_first_frame:
                 self.reset_single(i)

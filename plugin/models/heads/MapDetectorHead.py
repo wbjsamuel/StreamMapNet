@@ -218,11 +218,17 @@ class MapDetectorHead(nn.Module):
                 prop_reference_points_list.append(padding)
             else:
                 # use float64 to do precise coord transformation
-                prev_e2g_trans = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_translation'], dtype=torch.float64)
-                prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_rotation'], dtype=torch.float64)
-                curr_e2g_trans = self.roi_size.new_tensor(img_metas[i][0]['ego2global_translation'], dtype=torch.float64)
-                curr_e2g_rot = self.roi_size.new_tensor(img_metas[i][0]['ego2global_rotation'], dtype=torch.float64)
-                
+                if 0 in pose_memory[i].keys():
+                    prev_e2g_trans = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_translation'], dtype=torch.float64)
+                    prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i][0]['ego2global_rotation'], dtype=torch.float64)
+                    curr_e2g_trans = self.roi_size.new_tensor(img_metas[i][0]['ego2global_translation'], dtype=torch.float64)
+                    curr_e2g_rot = self.roi_size.new_tensor(img_metas[i][0]['ego2global_rotation'], dtype=torch.float64)
+                else:
+                    prev_e2g_trans = self.roi_size.new_tensor(pose_memory[i]['ego2global_translation'], dtype=torch.float64)
+                    prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i]['ego2global_rotation'], dtype=torch.float64)
+                    curr_e2g_trans = self.roi_size.new_tensor(img_metas[i]['ego2global_translation'], dtype=torch.float64)
+                    curr_e2g_rot = self.roi_size.new_tensor(img_metas[i]['ego2global_rotation'], dtype=torch.float64)
+
                 prev_e2g_matrix = torch.eye(4, dtype=torch.float64).to(query_embedding.device)
                 prev_e2g_matrix[:3, :3] = prev_e2g_rot
                 prev_e2g_matrix[:3, 3] = prev_e2g_trans
@@ -505,8 +511,8 @@ class MapDetectorHead(nn.Module):
                 query_list.append(_queries)
                 ref_pts_list.append(_lines.view(-1, self.num_points, 2))
 
-            self.query_memory.update(query_list, img_metas)
-            self.reference_points_memory.update(ref_pts_list, img_metas)
+            self.query_memory.update(query_list, img_metas, bs)
+            self.reference_points_memory.update(ref_pts_list, img_metas, bs)
 
         return outputs
 
