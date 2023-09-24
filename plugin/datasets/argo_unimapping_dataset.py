@@ -18,6 +18,7 @@ import mmcv
 import cv2
 import math
 from scipy.spatial.distance import cdist, euclidean
+import matplotlib as mpl
 
 from pyquaternion import Quaternion
 from shapely.geometry import LineString, box, Polygon, MultiPolygon, MultiLineString
@@ -27,12 +28,10 @@ from mmcv.parallel import DataContainer as DC
 from mmdet.datasets import DATASETS
 from mmdet3d.datasets import Custom3DDataset
 from .openlane_v2_av2_dataset import OpenLaneV2_Av2_Dataset
+from .openlanev2_lanesegment.evaluation import evaluate as openlanev2_evaluate
+from .openlanev2.utils import format_metric
+from .olv2_utils import show_bev_results_lanesegment, fix_pts_interpolate
 
-def fix_pts_interpolate(lane, n_points):
-    ls = LineString(lane)
-    distances = np.linspace(0, ls.length, n_points)
-    lane = np.array([ls.interpolate(distance).coords[0] for distance in distances])
-    return lane
 
 @DATASETS.register_module()
 class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
@@ -338,25 +337,23 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             right_boundary = lane['right_laneline']
             LineString_right_boundary = LineString(right_boundary)
             gt_lanes.append([LineString_lane, LineString_left_boundary, LineString_right_boundary])
-            # gt_lane_labels_3d.append(0)
             gt_lane_labels_3d.append(1) # StreamMapNet only
             gt_lane_left_type.append(lane['left_laneline_type'])
             gt_lane_right_type.append(lane['right_laneline_type'])
-            # vectors.append({'1': [LineString_left_boundary, LineString_right_boundary]})
+
         for area in ann_info['area']:
             if area['category'] == 1 and 'ped_crossing' in self.LANE_CLASSES:
                 centerline, left_boundary, right_boundary = self.ped2lane_segment(area['points'])
                 gt_lanes.append([centerline, left_boundary, right_boundary])
-                # gt_lane_labels_3d.append(1)
                 gt_lane_labels_3d.append(0) # StreamMapNet only
-                # vectors.append({'0': [left_boundary, right_boundary]})
+
             elif area['category'] == 2 and 'road_boundary' in self.LANE_CLASSES:
                 bound = area['points']
                 if self.boundary_type == 'line':
                     bound = LineString(self.change_boundary_dir(bound))
                 gt_lanes.append([bound, bound, bound])
                 gt_lane_labels_3d.append(2)
-                # vectors.append({'2': [bound]})
+
             gt_lane_left_type.append(0)
             gt_lane_right_type.append(0)
 
@@ -457,6 +454,165 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         
         return input_dict
 
+    def format_openlanev2_gt(self):
+        gt_dict = {}
+        for idx in range(len(self.data_infos)):
+            info = copy.deepcopy(self.data_infos[idx])
+            if 'annotation_cache' not in info:
+                ann_info = self.crop_scene_map(idx)
+                self.data_infos[idx]['annotation_cache'] = ann_info
+            else:
+                ann_info = info['annotation_cache']
+            key = (self.split, info['segment_id'], str(info['timestamp']))
+
+            info['annotation'] = dict(
+                lane_segment = [],
+                area = [],
+                traffic_element = [],
+                topology_lsls = None,
+                topology_lste = None,
+            )
+
+            for ls_info in ann_info['lane_segment']:
+                ls_info = copy.deepcopy(ls_info)
+                ls_info['centerline'] = fix_pts_interpolate(ls_info['centerline'], 10)
+                ls_info['left_laneline'] = fix_pts_interpolate(ls_info['left_laneline'], 10)
+                ls_info['right_laneline'] = fix_pts_interpolate(ls_info['right_laneline'], 10)
+                info['annotation']['lane_segment'].append(ls_info)
+
+            info['annotation']['topology_lsls'] = ann_info['topology_lsls']
+            info['annotation']['topology_lste'] = np.zeros((len(info['annotation']['lane_segment']), 0), dtype=bool)
+
+            for area in ann_info['area']:
+                area = copy.deepcopy(area)
+                if area['category'] == 1:
+                    points = area['points']
+                    left_boundary = fix_pts_interpolate(points[[0, 1]], 10)
+                    right_boundary = fix_pts_interpolate(points[[2, 3]], 10)
+                    area['points'] = np.concatenate([left_boundary, right_boundary], axis=0)
+                elif area['category'] == 2:
+                    area['points'] = fix_pts_interpolate(area['points'], 20)
+
+                info['annotation']['area'].append(area)
+
+            gt_dict[key] = info
+
+        return gt_dict
+
+    def format_results(self, results, jsonfile_prefix=None):
+        # TODO: reformulate from StreamMapNet's output to OpenLaneV2's output
+        pred_dict = {}
+        pred_dict['method'] = 'dummy'
+        pred_dict['authors'] = []
+        pred_dict['e-mail'] = 'dummy'
+        pred_dict['institution / company'] = 'dummy'
+        pred_dict['country / region'] = 'CN'
+        pred_dict['results'] = {}
+        for idx, result in enumerate(results):
+            info = self.data_infos[idx]
+            key = (self.split, info['segment_id'], str(info['timestamp']))
+
+            pred_info = dict(
+                lane_segment = [],
+                area = [],
+                traffic_element = [],
+                topology_lclc = None,
+                topology_lcte = None
+            )
+
+            if result['lane_results'] is not None:
+                lane_results = result['lane_results']
+                scores = lane_results[1]
+                valid_indices = np.argsort(-scores)
+                lanes = lane_results[0][valid_indices]
+                labels = lane_results[2][valid_indices]
+                scores = scores[valid_indices]
+                lanes = lanes.reshape(-1, lanes.shape[-1] // 3, 3)
+
+                has_lane_type = False
+                if len(lane_results) in [7, 8]:
+                    left_type_scores = lane_results[3][valid_indices]
+                    left_type_labels = lane_results[4][valid_indices]
+                    right_type_scores = lane_results[5][valid_indices]
+                    right_type_labels = lane_results[6][valid_indices]
+                    has_lane_type = True
+
+                pred_area_index = []
+                for pred_idx, (lane, score, label) in enumerate(zip(lanes, scores, labels)):
+                    if label == 0:
+                        points = lane.astype(np.float32)
+                        pred_lane_segment = {}
+                        pred_lane_segment['id'] = 20000 + pred_idx
+                        pred_lane_segment['centerline']     = fix_pts_interpolate(points[:self.points_num], 10)
+                        pred_lane_segment['left_laneline']  = fix_pts_interpolate(points[self.points_num:self.points_num * 2], 10)
+                        pred_lane_segment['right_laneline'] = fix_pts_interpolate(points[self.points_num * 2:], 10)
+                        pred_lane_segment['left_laneline_type'] = left_type_labels[pred_idx] if has_lane_type else -1
+                        pred_lane_segment['right_laneline_type'] = right_type_labels[pred_idx] if has_lane_type else -1
+                        pred_lane_segment['confidence'] = score.item()
+                        pred_info['lane_segment'].append(pred_lane_segment)
+
+                    elif label == 1:
+                        points = lane.astype(np.float32)
+                        pred_ped = {}
+                        pred_ped['id'] = 20000 + pred_idx
+                        pred_points = np.concatenate((points[self.points_num:self.points_num * 2],
+                                                      points[self.points_num * 2:][::-1],
+                                                      points[self.points_num][None]), axis=0)
+                        pred_ped['points'] = fix_pts_interpolate(pred_points, 20)
+                        pred_ped['category'] = label
+                        pred_ped['confidence'] = score.item()
+                        pred_info['area'].append(pred_ped)
+                        pred_area_index.append(pred_idx)
+
+                    elif label == 2:
+                        points = lane.astype(np.float32)
+                        pred_bound = {}
+                        pred_bound['id'] = 20000 + pred_idx
+                        pred_points = np.zeros((self.points_num * 2, 3), dtype=np.float32)
+                        pred_points[0::2] = points[self.points_num:self.points_num * 2]
+                        pred_points[1::2] = points[self.points_num * 2:]
+                        pred_bound['points'] = fix_pts_interpolate(pred_points, 20)
+                        pred_bound['category'] = label
+                        pred_bound['confidence'] = score.item()
+                        pred_info['area'].append(pred_bound)
+                        pred_area_index.append(pred_idx)
+
+            if result['bbox_results'] is not None:
+                te_results = result['bbox_results']
+                scores = te_results[1]
+                te_valid_indices = np.argsort(-scores)
+                tes = te_results[0][te_valid_indices]
+                scores = scores[te_valid_indices]
+                class_idxs = te_results[2][te_valid_indices]
+                for pred_idx, (te, score, class_idx) in enumerate(zip(tes, scores, class_idxs)):
+                    te_info = dict(
+                        id = 10000 + pred_idx,
+                        category = 1 if class_idx < 4 else 2,
+                        attribute = class_idx,
+                        points = te.reshape(2, 2).astype(np.float32),
+                        confidence = score
+                    )
+                    pred_info['traffic_element'].append(te_info)
+
+            if result['lclc_results'] is not None:
+                topology_lsls_ped = result['lclc_results'].astype(np.float32)[valid_indices][:, valid_indices]
+                topology_lsls_ped = np.delete(topology_lsls_ped, pred_area_index, axis=0)
+                topology_lsls = np.delete(topology_lsls_ped, pred_area_index, axis=1)
+                pred_info['topology_lsls'] = topology_lsls
+            else:
+                pred_info['topology_lsls'] = np.zeros((len(pred_info['lane_segment']), len(pred_info['lane_segment'])), dtype=np.float32)
+
+            if result['lcte_results'] is not None:
+                topology_lste = result['lcte_results'].astype(np.float32)[valid_indices]
+                topology_lste = np.delete(topology_lste, pred_area_index, axis=0)
+                pred_info['topology_lste'] = topology_lste
+            else:
+                pred_info['topology_lste'] = np.zeros((len(pred_info['lane_segment']), len(pred_info['traffic_element'])), dtype=np.float32)
+
+            pred_dict['results'][key] = dict(predictions=pred_info)
+
+        return pred_dict
+
     def evaluate(self, results, logger=None, show=False, out_dir=None, **kwargs):
         """Evaluation in OpenlaneV2 av2 dataset. TODO Adapt to OLV2 evaluation metric.
 
@@ -480,6 +636,7 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             logger.info(f'Visualize done.')
 
         logger.info(f'Starting format results...')
+        breakpoint()
         gt_dict = self.format_openlanev2_gt()
         pred_dict = self.format_results(results)
 
@@ -487,3 +644,172 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         metric_results = openlanev2_evaluate(gt_dict, pred_dict)
         metric_results = format_metric(metric_results)
         return metric_results
+
+    def show(self, results, out_dir, score_thr=0.3, show_num=20, **kwargs):
+        """Show the results.
+
+        Args:
+            results (list[dict]): Testing results of the dataset.
+            out_dir (str): Path of directory to save the results.
+            score_thr (float): The threshold of score.
+            show_num (int): The number of images to be shown.
+        """
+        for idx, result in enumerate(results):
+
+            if idx % 6 != 0:
+                continue
+            if idx // 6 > show_num:
+                break
+
+            info = self.data_infos[idx]
+
+            gt_lanes_centerline = []
+            gt_lanes_left = []
+            gt_lanes_right = []
+
+            if 'annotation_cache' not in info:
+                ann_info = self.crop_scene_map(idx)
+                self.data_infos[idx]['annotation_cache'] = ann_info
+            else:
+                ann_info = info['annotation_cache']
+            for idx, lane_segment in enumerate(ann_info['lane_segment']):
+                left_line = np.array(lane_segment['left_laneline'], dtype=np.float32)
+                right_line = np.array(lane_segment['right_laneline'], dtype=np.float32)
+                centerline = (left_line + right_line) / 2
+
+                gt_lanes_centerline.append(centerline)
+                gt_lanes_left.append(left_line)
+                gt_lanes_right.append(right_line)
+
+            gt_areas = []
+            for idx, area in enumerate(ann_info['area']):
+                gt_areas.append(area['points'])
+
+            lane_results = result['lane_results']
+            lanes = lane_results[0]
+            scores = lane_results[1]
+            labels = lane_results[2]
+            lanes = lanes.reshape(-1, lanes.shape[-1] // 3, 3)
+            if len(lane_results) in [4, 8]:
+                lane_masks = lane_results[-1]
+                have_mask = True
+            else:
+                lane_masks = [None] * len(lanes)
+                have_mask = False
+
+
+            pred_lanes_centerline = []
+            pred_lanes_left = []
+            pred_lanes_right = []
+            pred_lanes_mask = []
+            lane_scores = []
+
+            pred_areas = []
+            pred_area_mask = []
+            area_scores = []
+
+            for pred_idx, (lane, score, label, mask) in enumerate(zip(lanes, scores, labels, lane_masks)):
+                if label == 0:
+                    points = lane.astype(np.float32)
+                    pred_lanes_centerline.append(fix_pts_interpolate(points[:self.points_num], 20))
+                    pred_lanes_left.append(fix_pts_interpolate(points[self.points_num:self.points_num * 2], 20))
+                    pred_lanes_right.append(fix_pts_interpolate(points[self.points_num * 2:], 20))
+                    lane_scores.append(score.item())
+                    pred_lanes_mask.append(mask)
+
+                elif label == 1:
+                    points = lane.astype(np.float32)
+                    pred_ped = np.concatenate((points[self.points_num:self.points_num * 2],
+                                               points[self.points_num * 2:][::-1],
+                                               points[self.points_num][None]), axis=0)
+                    pred_areas.append(pred_ped)
+                    area_scores.append(score.item())
+                    pred_area_mask.append(mask)
+
+                elif label == 2:
+                    points = lane.astype(np.float32)
+                    pred_bound = np.zeros((self.points_num * 2, 3), dtype=np.float32)
+                    pred_bound[0::2] = points[self.points_num:self.points_num * 2]
+                    pred_bound[1::2] = points[self.points_num * 2:]
+                    pred_areas.append(pred_bound)
+                    area_scores.append(score.item())
+                    pred_area_mask.append(mask)
+
+
+            lane_scores = np.array(lane_scores)
+            mask_lane = lane_scores > score_thr
+            pred_lanes_centerline = np.array(pred_lanes_centerline)[mask_lane]
+            pred_lanes_left = np.array(pred_lanes_left)[mask_lane]
+            pred_lanes_right = np.array(pred_lanes_right)[mask_lane]
+            pred_lanes_mask = np.array(pred_lanes_mask)[mask_lane]
+
+            area_scores = np.array(area_scores)
+            mask_ped = area_scores > score_thr
+            pred_areas = np.array(pred_areas)[mask_ped]
+            pred_area_mask = np.array(pred_area_mask)[mask_ped]
+
+            vis_map_size = np.array(self.map_size)[[0, 2, 1, 3]] + np.array([-2, 2, -2, 2])
+            img_gt = show_bev_results_lanesegment(gt_lanes_centerline, pred_lanes_centerline,
+                                                  gt_lanes_left, pred_lanes_left,
+                                                  gt_lanes_right, pred_lanes_right,
+                                                  gt_areas, pred_areas,
+                                                  only='gt',
+                                                  map_size=vis_map_size,
+                                                  scale=20)
+            img_pred = show_bev_results_lanesegment(gt_lanes_centerline, pred_lanes_centerline,
+                                                    gt_lanes_left, pred_lanes_left,
+                                                    gt_lanes_right, pred_lanes_right,
+                                                    gt_areas, pred_areas,
+                                                    only='pred',
+                                                    map_size=vis_map_size,
+                                                    scale=20)
+            divider = np.ones((img_gt.shape[0], 7, 3), dtype=np.uint8) * 128
+            bev_img = np.concatenate([img_gt, divider, img_pred], axis=1)
+
+            output_path = os.path.join(out_dir, f'{info["segment_id"]}/{info["timestamp"]}/bev.jpg')
+            mmcv.imwrite(bev_img, output_path)
+
+            if not have_mask:
+                continue
+
+            cmap = mpl.colormaps['inferno']
+            vis_map_size = np.array(self.map_size)[[0, 2, 1, 3]]
+            for inst_idx, (lane, mask) in enumerate(zip(pred_ped_crossing, pred_ped_mask)):
+                inst_img = show_bev_results_lanesegment([], [],
+                                                        [], [],
+                                                        [], [],
+                                                        [], [lane],
+                                                        only='pred',
+                                                        map_size=vis_map_size,
+                                                        scale=10)
+                mask = (cmap(mask)[..., [2, 1, 0]] * 255).astype(np.uint8)
+                mask = np.transpose(mask, (1, 0, 2))
+                mask = np.flip(mask, 1)
+                mask = np.flip(mask, 0)
+                mask = cv2.resize(mask, (inst_img.shape[1], inst_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+                inst_img = cv2.addWeighted(inst_img, 1, mask, 0.8, 0)
+                output_path = os.path.join(out_dir, f'{info["segment_id"]}/{info["timestamp"]}/ped/{inst_idx}.jpg')
+                mmcv.imwrite(inst_img, output_path)
+
+            for inst_idx, (lane, left, right, mask) in enumerate(zip(pred_lanes_centerline, pred_lanes_left, pred_lanes_right, pred_lanes_mask)):
+                inst_img = show_bev_results_lanesegment([], [lane],
+                                                        [], [left],
+                                                        [], [right],
+                                                        [], [],
+                                                        only='pred',
+                                                        map_size=vis_map_size,
+                                                        scale=10)
+                mask = (cmap(mask)[..., [2, 1, 0]] * 255).astype(np.uint8)
+                mask = np.transpose(mask, (1, 0, 2))
+                mask = np.flip(mask, 1)
+                mask = np.flip(mask, 0)
+                mask = cv2.resize(mask, (inst_img.shape[1], inst_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+                inst_img = cv2.addWeighted(inst_img, 1, mask, 0.8, 0)
+                output_path = os.path.join(out_dir, f'{info["segment_id"]}/{info["timestamp"]}/inst/{inst_idx}.jpg')
+                mmcv.imwrite(inst_img, output_path)
+
+            if 'seg_results' in result:
+
+                bev_img = (result['seg_results'].argmax(0) * 255/2).astype(np.uint8)
+                output_path = os.path.join(out_dir, f'{info["segment_id"]}/{info["timestamp"]}/bev_seg.jpg')
+                mmcv.imwrite(bev_img, output_path)

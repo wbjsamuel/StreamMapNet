@@ -383,9 +383,9 @@ lr_config = dict(
     warmup_ratio=1.0 / 3,
     min_lr_ratio=3e-3)
 
-evaluation = dict(interval=total_iters//60)
+evaluation = dict(interval=total_iters // 60)
 find_unused_parameters = True #### when use checkpoint, find_unused_parameters must be False
-checkpoint_config = dict(interval=total_iters//60)
+checkpoint_config = dict(interval=total_iters // 60)
 
 runner = dict(
     type='IterBasedRunner', max_iters=num_epochs * num_iters_per_epoch)
