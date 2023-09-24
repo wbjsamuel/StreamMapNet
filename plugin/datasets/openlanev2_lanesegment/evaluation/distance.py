@@ -22,7 +22,7 @@
 
 import numpy as np
 from scipy.spatial.distance import cdist, euclidean
-from openlanev2.evaluation.distance import chamfer_distance, frechet_distance, iou_distance
+from plugin.datasets.openlanev2.evaluation.distance import chamfer_distance, frechet_distance, iou_distance
 
 
 def pairwise(xs: list, ys: list, distance_function: callable, mask: np.ndarray = None, relax: bool = False) -> np.ndarray:

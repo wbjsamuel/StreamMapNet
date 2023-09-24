@@ -26,8 +26,8 @@ from scipy.spatial.distance import cdist, euclidean
 from .distance import (pairwise, area_distance, lane_segment_distance, lane_segment_distance_c, traffic_element_distance, 
                        calculate_type_error, calculate_distance_error)
 # from ..preprocessing import check_results
-from openlanev2.utils import TRAFFIC_ELEMENT_ATTRIBUTE, AREA_CATEGOTY
-from openlanev2.io import io
+from plugin.datasets.openlanev2.utils import TRAFFIC_ELEMENT_ATTRIBUTE, AREA_CATEGOTY
+from plugin.datasets.openlanev2.io import io
 
 THRESHOLDS_AREA = [0.5, 1.0, 1.5]
 THRESHOLDS_LANESEG = [1.0, 2.0, 3.0]

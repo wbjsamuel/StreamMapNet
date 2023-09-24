@@ -1,7 +1,7 @@
 import numpy as np
 import mmcv
 import cv2
-from openlanev2.visualization.utils import COLOR_DICT
+from plugin.datasets.openlanev2.visualization.utils import COLOR_DICT
 import random
 
 from pyquaternion import Quaternion
