@@ -40,7 +40,7 @@ bev_w = 100
 pc_range = [-roi_size[0]/2, -roi_size[1]/2, -3, roi_size[0]/2, roi_size[1]/2, 5]
 
 # vectorize params
-coords_dim = 3
+coords_dim = 2
 sample_dist = -1
 sample_num = -1
 simplify = True
@@ -174,7 +174,7 @@ model = dict(
         in_channels=embed_dims//2,
         num_points=num_points,
         roi_size=roi_size,
-        coord_dim=2,
+        coord_dim=coords_dim,
         different_heads=False,
         predict_refine=False,
         sync_cls_avg_factor=True,
@@ -188,7 +188,7 @@ model = dict(
             type='MapTransformer',
             num_feature_levels=1,
             num_points=num_points,
-            coord_dim=2,
+            coord_dim=coords_dim,
             encoder=dict(
                 type='PlaceHolderEncoder',
                 embed_dims=embed_dims,
