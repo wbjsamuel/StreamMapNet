@@ -86,6 +86,7 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--input', type=str, help='input result file')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -227,7 +228,10 @@ def main():
     # embed()
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
-    if not distributed:
+
+    if args.input:
+        outputs = mmcv.load(args.input)
+    elif not distributed:
         model = MMDataParallel(model, device_ids=[0])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
     else:

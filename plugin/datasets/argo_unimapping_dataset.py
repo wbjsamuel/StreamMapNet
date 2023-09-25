@@ -645,11 +645,11 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             logger.info(f'Visualize done.')
         print(f'Starting storing results...')
         mmcv.dump(results, './results.pkl')
-        logger.info(f'Starting format results...')
+        print(f'Starting format results...')
         gt_dict = self.format_openlanev2_gt()
         pred_dict = self.format_results(results)
 
-        logger.info(f'Starting openlanev2 evaluate...')
+        print(f'Starting openlanev2 evaluate...')
         metric_results = openlanev2_evaluate(gt_dict, pred_dict)
         metric_results = format_metric(metric_results)
         return metric_results

@@ -641,8 +641,8 @@ def evaluate(ground_truth, predictions, verbose=True):
         inject=True,  # save tp for eval on graph
         ls_error=False)
     metrics['OpenLane-V2 Score']['DET_ls'] = ls_eval.mean()
-    metrics['OpenLane-V2 Score']['attr. err'] = ls_eval[1, 1]
-    metrics['OpenLane-V2 Score']['dist. err'] = ls_eval[1, 2]
+    # metrics['OpenLane-V2 Score']['attr. err'] = ls_eval[1, 1]
+    # metrics['OpenLane-V2 Score']['dist. err'] = ls_eval[1, 2]
 
     DET_a = np.array([_mAP_over_threshold(
         gts=gts, 
