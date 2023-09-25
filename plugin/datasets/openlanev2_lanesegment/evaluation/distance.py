@@ -117,11 +117,11 @@ def lane_segment_distance(gt: dict, pred: dict) -> float:
     """
     gt_centerline, gt_left_laneline, gt_right_laneline = gt['centerline'], gt['left_laneline'], gt['right_laneline']
     pred_centerline, pred_left_laneline, pred_right_laneline = pred['centerline'], pred['left_laneline'], pred['right_laneline']
-    return 0.5 * ( \
-        frechet_distance(gt_centerline, pred_centerline) + \
-        chamfer_distance(gt_left_laneline, pred_left_laneline) + \
-        chamfer_distance(gt_right_laneline, pred_right_laneline))
-
+    # return 0.5 * ( \
+    #     frechet_distance(gt_centerline, pred_centerline) + \
+    #     chamfer_distance(gt_left_laneline, pred_left_laneline) + \
+    #     chamfer_distance(gt_right_laneline, pred_right_laneline))
+    return chamfer_distance(gt_left_laneline, pred_left_laneline) + chamfer_distance(gt_right_laneline, pred_right_laneline)
 
 def traffic_element_distance(gt: dict, pred: dict) -> float:
     r"""

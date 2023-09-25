@@ -11,7 +11,7 @@ import tempfile
 import warnings
 import random
 import copy
-
+from tqdm import tqdm
 import numpy as np
 import torch
 import mmcv
@@ -456,7 +456,7 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
 
     def format_openlanev2_gt(self):
         gt_dict = {}
-        for idx in range(len(self.data_infos)):
+        for idx in tqdm(range(len(self.data_infos))):
             info = copy.deepcopy(self.data_infos[idx])
             if 'annotation_cache' not in info:
                 ann_info = self.crop_scene_map(idx)
@@ -475,9 +475,9 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
 
             for ls_info in ann_info['lane_segment']:
                 ls_info = copy.deepcopy(ls_info)
-                ls_info['centerline'] = fix_pts_interpolate(ls_info['centerline'], 10)
-                ls_info['left_laneline'] = fix_pts_interpolate(ls_info['left_laneline'], 10)
-                ls_info['right_laneline'] = fix_pts_interpolate(ls_info['right_laneline'], 10)
+                ls_info['centerline'] = fix_pts_interpolate(ls_info['centerline'], 10)[:,:2]
+                ls_info['left_laneline'] = fix_pts_interpolate(ls_info['left_laneline'], 10)[:,:2]
+                ls_info['right_laneline'] = fix_pts_interpolate(ls_info['right_laneline'], 10)[:,:2]
                 info['annotation']['lane_segment'].append(ls_info)
 
             info['annotation']['topology_lsls'] = ann_info['topology_lsls']
@@ -487,11 +487,11 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
                 area = copy.deepcopy(area)
                 if area['category'] == 1:
                     points = area['points']
-                    left_boundary = fix_pts_interpolate(points[[0, 1]], 10)
-                    right_boundary = fix_pts_interpolate(points[[2, 3]], 10)
+                    left_boundary = fix_pts_interpolate(points[[0, 1]], 10)[:,:2]
+                    right_boundary = fix_pts_interpolate(points[[2, 3]], 10)[:,:2]
                     area['points'] = np.concatenate([left_boundary, right_boundary], axis=0)
                 elif area['category'] == 2:
-                    area['points'] = fix_pts_interpolate(area['points'], 20)
+                    area['points'] = fix_pts_interpolate(area['points'], 20)[:,:2]
 
                 info['annotation']['area'].append(area)
 
@@ -508,7 +508,9 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         pred_dict['institution / company'] = 'dummy'
         pred_dict['country / region'] = 'CN'
         pred_dict['results'] = {}
-        for idx, result in enumerate(results):
+        # breakpoint()
+        # result keys: vectors(100,20,2), scores(100, ), labels(100, ), prop_mask(100,), token(str)
+        for idx, result in enumerate(tqdm(results)):
             info = self.data_infos[idx]
             key = (self.split, info['segment_id'], str(info['timestamp']))
 
@@ -520,46 +522,53 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
                 topology_lcte = None
             )
 
-            if result['lane_results'] is not None:
-                lane_results = result['lane_results']
-                scores = lane_results[1]
+            result['bbox_results'] = None
+            result['lclc_results'] = None
+            result['lcte_results'] = None
+
+            if result['vectors'] is not None:
+                lane_results = result['vectors']
+                # scores = lane_results[1]
+                scores = result['scores']
                 valid_indices = np.argsort(-scores)
-                lanes = lane_results[0][valid_indices]
-                labels = lane_results[2][valid_indices]
+                lanes = lane_results[valid_indices]
+                labels = result['labels'][valid_indices]
                 scores = scores[valid_indices]
-                lanes = lanes.reshape(-1, lanes.shape[-1] // 3, 3)
+                # lanes = lanes.reshape(-1, lanes.shape[-1] // 2, 2)
 
                 has_lane_type = False
-                if len(lane_results) in [7, 8]:
-                    left_type_scores = lane_results[3][valid_indices]
-                    left_type_labels = lane_results[4][valid_indices]
-                    right_type_scores = lane_results[5][valid_indices]
-                    right_type_labels = lane_results[6][valid_indices]
-                    has_lane_type = True
+                # if len(lane_results) in [7, 8]:
+                #     left_type_scores = lane_results[3][valid_indices]
+                #     left_type_labels = lane_results[4][valid_indices]
+                #     right_type_scores = lane_results[5][valid_indices]
+                #     right_type_labels = lane_results[6][valid_indices]
+                #     has_lane_type = True
 
                 pred_area_index = []
                 for pred_idx, (lane, score, label) in enumerate(zip(lanes, scores, labels)):
-                    if label == 0:
+                    if label == 1:
                         points = lane.astype(np.float32)
                         pred_lane_segment = {}
                         pred_lane_segment['id'] = 20000 + pred_idx
-                        pred_lane_segment['centerline']     = fix_pts_interpolate(points[:self.points_num], 10)
-                        pred_lane_segment['left_laneline']  = fix_pts_interpolate(points[self.points_num:self.points_num * 2], 10)
-                        pred_lane_segment['right_laneline'] = fix_pts_interpolate(points[self.points_num * 2:], 10)
-                        pred_lane_segment['left_laneline_type'] = left_type_labels[pred_idx] if has_lane_type else -1
-                        pred_lane_segment['right_laneline_type'] = right_type_labels[pred_idx] if has_lane_type else -1
+                        # pred_lane_segment['centerline']     = fix_pts_interpolate(points[:self.points_num], 10)
+                        # pred_lane_segment['left_laneline']  = fix_pts_interpolate(points[self.points_num:self.points_num * 2], 10)
+                        pred_lane_segment['left_laneline'] = fix_pts_interpolate(points[:self.points_num], 10)
+                        # pred_lane_segment['right_laneline'] = fix_pts_interpolate(points[self.points_num * 2:], 10)
+                        pred_lane_segment['right_laneline'] = fix_pts_interpolate(points[self.points_num:self.points_num*2], 10)
+                        # pred_lane_segment['left_laneline_type'] = left_type_labels[pred_idx] if has_lane_type else -1
+                        # pred_lane_segment['right_laneline_type'] = right_type_labels[pred_idx] if has_lane_type else -1
+                        pred_lane_segment['centerline'] = (pred_lane_segment['left_laneline'] + pred_lane_segment['right_laneline'])/2
                         pred_lane_segment['confidence'] = score.item()
                         pred_info['lane_segment'].append(pred_lane_segment)
 
-                    elif label == 1:
+                    elif label == 0:
                         points = lane.astype(np.float32)
                         pred_ped = {}
                         pred_ped['id'] = 20000 + pred_idx
-                        pred_points = np.concatenate((points[self.points_num:self.points_num * 2],
-                                                      points[self.points_num * 2:][::-1],
-                                                      points[self.points_num][None]), axis=0)
+                        pred_points = np.concatenate((points[:self.points_num],
+                                                      points[self.points_num:self.points_num * 2][::-1]), axis=0)
                         pred_ped['points'] = fix_pts_interpolate(pred_points, 20)
-                        pred_ped['category'] = label
+                        pred_ped['category'] = 1 # hard code, adapt to StreamMapNet
                         pred_ped['confidence'] = score.item()
                         pred_info['area'].append(pred_ped)
                         pred_area_index.append(pred_idx)
@@ -568,9 +577,9 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
                         points = lane.astype(np.float32)
                         pred_bound = {}
                         pred_bound['id'] = 20000 + pred_idx
-                        pred_points = np.zeros((self.points_num * 2, 3), dtype=np.float32)
-                        pred_points[0::2] = points[self.points_num:self.points_num * 2]
-                        pred_points[1::2] = points[self.points_num * 2:]
+                        pred_points = np.zeros((self.points_num * 2, 2), dtype=np.float32)
+                        pred_points[0::2] = points[:self.points_num]
+                        pred_points[1::2] = points[self.points_num:]
                         pred_bound['points'] = fix_pts_interpolate(pred_points, 20)
                         pred_bound['category'] = label
                         pred_bound['confidence'] = score.item()
@@ -634,9 +643,9 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             logger.info(f'Visualizing results at {out_dir}...')
             self.show(results, out_dir)
             logger.info(f'Visualize done.')
-
+        print(f'Starting storing results...')
+        mmcv.dump(results, './results.pkl')
         logger.info(f'Starting format results...')
-        breakpoint()
         gt_dict = self.format_openlanev2_gt()
         pred_dict = self.format_results(results)
 

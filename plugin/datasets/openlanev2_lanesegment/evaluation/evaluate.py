@@ -639,8 +639,8 @@ def evaluate(ground_truth, predictions, verbose=True):
         object_type='lane_segment',
         filter=lambda _: True,
         inject=True,  # save tp for eval on graph
-        ls_error=True)
-    metrics['OpenLane-V2 Score']['DET_ls'] = ls_eval[:, 0].mean()
+        ls_error=False)
+    metrics['OpenLane-V2 Score']['DET_ls'] = ls_eval.mean()
     metrics['OpenLane-V2 Score']['attr. err'] = ls_eval[1, 1]
     metrics['OpenLane-V2 Score']['dist. err'] = ls_eval[1, 2]
 

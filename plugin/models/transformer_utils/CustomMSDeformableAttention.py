@@ -92,7 +92,7 @@ class CustomMSDeformableAttention(BaseModule):
                 'MultiScaleDeformAttention to make '
                 'the dimension of each attention head a power of 2 '
                 'which is more efficient in our CUDA implementation.')
-
+        self.coords_dim = 2  # hard code temporarily
         self.im2col_step = im2col_step
         self.embed_dims = embed_dims
         self.num_levels = num_levels
@@ -101,7 +101,7 @@ class CustomMSDeformableAttention(BaseModule):
         self.use_sampling_offsets = use_sampling_offsets
         if use_sampling_offsets:
             self.sampling_offsets = nn.Linear(
-                embed_dims, num_heads * num_levels * num_points * 2)
+                embed_dims, num_heads * num_levels * num_points * self.coords_dim)
         self.attention_weights = nn.Linear(embed_dims,
                                            num_heads * num_levels * num_points)
         self.value_proj = nn.Linear(embed_dims, embed_dims)
@@ -187,7 +187,6 @@ class CustomMSDeformableAttention(BaseModule):
             # change to (bs, num_query ,embed_dims)
             query = query.permute(1, 0, 2)
             value = value.permute(1, 0, 2)
-
         bs, num_query, _ = query.shape
         bs, num_value, _ = value.shape
         assert (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() == num_value
@@ -199,7 +198,7 @@ class CustomMSDeformableAttention(BaseModule):
 
         if self.use_sampling_offsets:
             sampling_offsets = self.sampling_offsets(query).view(
-                bs, num_query, self.num_heads, self.num_levels, self.num_points, 2)
+                bs, num_query, self.num_heads, self.num_levels, self.num_points, self.coords_dim) # originally here is 2
         else:
             sampling_offsets = query.new_zeros((bs, num_query, self.num_heads, self.num_levels, self.num_points, 2))
         

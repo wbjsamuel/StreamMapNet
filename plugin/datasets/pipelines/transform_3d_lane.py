@@ -49,6 +49,10 @@ class LaneSegmentParameterize3D(object):
                 [ls.interpolate(distance).coords[0] for distance in distances]
             )
 
+            # transform to 2D
+            left_line = left_line[:, :2]
+            right_line = right_line[:, :2]
+
             centerline = (left_line + right_line) / 2.0
             if self.only == "centerline":
                 line = centerline.flatten()

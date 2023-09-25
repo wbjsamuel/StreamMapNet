@@ -83,7 +83,6 @@ class CustomDistEvalHook(BaseDistEvalHook):
         if runner.rank == 0:
             print('\n')
             runner.log_buffer.output['eval_iter_num'] = len(self.dataloader)
-            breakpoint()
             key_score = self.evaluate(runner, results)
 
             if self.save_best:
