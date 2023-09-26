@@ -388,7 +388,7 @@ find_unused_parameters = True #### when use checkpoint, find_unused_parameters m
 checkpoint_config = dict(interval=total_iters // 60)
 
 runner = dict(
-    type='EpochBasedRunner', max_iters=num_epochs)
+    type='EpochBasedRunner', max_epochs=num_epochs)
 
 log_config = dict(
     interval=100,
