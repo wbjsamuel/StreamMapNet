@@ -327,7 +327,6 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
         gt_lane_labels_3d = []
         gt_lane_left_type = []
         gt_lane_right_type = []
-        vectors = []
 
         for idx, lane in enumerate(ann_info['lane_segment']):
             centerline = lane['centerline']
@@ -336,10 +335,14 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
             LineString_left_boundary = LineString(left_boundary)
             right_boundary = lane['right_laneline']
             LineString_right_boundary = LineString(right_boundary)
-            gt_lanes.append([LineString_lane, LineString_left_boundary, LineString_right_boundary])
-            gt_lane_labels_3d.append(1) # StreamMapNet only
-            gt_lane_left_type.append(lane['left_laneline_type'])
-            gt_lane_right_type.append(lane['right_laneline_type'])
+            # remove virtual lanes
+            if lane['left_laneline_type'] and lane['right_laneline_type']:
+                gt_lanes.append([LineString_lane, LineString_left_boundary, LineString_right_boundary])
+                gt_lane_labels_3d.append(1) # StreamMapNet only
+                gt_lane_left_type.append(lane['left_laneline_type'])
+                gt_lane_right_type.append(lane['right_laneline_type'])
+            else:
+                continue
 
         for area in ann_info['area']:
             if area['category'] == 1 and 'ped_crossing' in self.LANE_CLASSES:
@@ -475,10 +478,13 @@ class AV2_UniMapping_Dataset(OpenLaneV2_Av2_Dataset):
 
             for ls_info in ann_info['lane_segment']:
                 ls_info = copy.deepcopy(ls_info)
-                ls_info['centerline'] = fix_pts_interpolate(ls_info['centerline'], 10)[:,:2]
-                ls_info['left_laneline'] = fix_pts_interpolate(ls_info['left_laneline'], 10)[:,:2]
-                ls_info['right_laneline'] = fix_pts_interpolate(ls_info['right_laneline'], 10)[:,:2]
-                info['annotation']['lane_segment'].append(ls_info)
+                if ls_info['left_laneline_type'] and ls_info['right_laneline_type']:
+                    ls_info['centerline'] = fix_pts_interpolate(ls_info['centerline'], 10)[:,:2]
+                    ls_info['left_laneline'] = fix_pts_interpolate(ls_info['left_laneline'], 10)[:,:2]
+                    ls_info['right_laneline'] = fix_pts_interpolate(ls_info['right_laneline'], 10)[:,:2]
+                    info['annotation']['lane_segment'].append(ls_info)
+                else:
+                    continue
 
             info['annotation']['topology_lsls'] = ann_info['topology_lsls']
             info['annotation']['topology_lste'] = np.zeros((len(info['annotation']['lane_segment']), 0), dtype=bool)

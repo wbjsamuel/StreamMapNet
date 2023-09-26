@@ -23,7 +23,7 @@ num_iters_per_epoch = 24000 // (num_gpus * batch_size)
 num_epochs = 24
 total_iters = num_iters_per_epoch * num_epochs
 num_iters_single_frame = total_iters // 6
-num_queries = 100
+num_queries = 200
 
 # category configs
 cat2id = {
@@ -100,11 +100,12 @@ model = dict(
         bev_h=bev_h,
         bev_w=bev_w,
         use_grid_mask=False,
+        pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
         img_backbone=dict(
             type='ResNet',
             with_cp=False,
             # pretrained='./resnet50_checkpoint.pth',
-            pretrained='open-mmlab://detectron2/resnet50_caffe',
+            # pretrained='open-mmlab://detectron2/resnet50_caffe',
             depth=50,
             num_stages=4,
             out_indices=(1, 2, 3),
@@ -319,7 +320,7 @@ eval_config = dict(
 # dataset configs
 data = dict(
     samples_per_gpu=1,
-    workers_per_gpu=8, # for debug, training will set it to 8
+    workers_per_gpu=0, # for debug, training will set it to 8
     train=dict(
         type=dataset_type,
         data_root=data_root,
@@ -382,15 +383,15 @@ lr_config = dict(
     warmup_ratio=1.0 / 3,
     min_lr_ratio=3e-3)
 
-evaluation = dict(interval=total_iters//6)
+evaluation = dict(interval=total_iters // 60)
 find_unused_parameters = True #### when use checkpoint, find_unused_parameters must be False
-checkpoint_config = dict(interval=total_iters//6)
+checkpoint_config = dict(interval=total_iters // 60)
 
 runner = dict(
     type='IterBasedRunner', max_iters=num_epochs * num_iters_per_epoch)
 
 log_config = dict(
-    interval=50,
+    interval=100,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
